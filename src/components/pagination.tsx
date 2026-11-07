@@ -30,16 +30,13 @@ export function Pagination({ currentPage, totalPages, basePath, searchParams }: 
   }
 
   const linkClass =
-    "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-sm transition";
+    "inline-flex h-9 min-w-9 items-center justify-center border-2 border-[var(--border)] px-2.5 font-pixel text-[10px] leading-none text-[var(--muted)] transition-colors duration-75 hover:border-[var(--ink)] hover:text-[var(--fg)]";
 
   return (
-    <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="分页">
+    <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="分页">
       {currentPage > 1 && (
-        <Link
-          href={buildHref(basePath, currentPage - 1, searchParams)}
-          className={`${linkClass} border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]`}
-        >
-          上一页
+        <Link href={buildHref(basePath, currentPage - 1, searchParams)} className={`${linkClass} px-3`}>
+          &lt; PREV
         </Link>
       )}
 
@@ -50,8 +47,8 @@ export function Pagination({ currentPage, totalPages, basePath, searchParams }: 
           aria-current={page === currentPage ? "page" : undefined}
           className={
             page === currentPage
-              ? `${linkClass} border-[var(--accent)] bg-[var(--accent)] text-white`
-              : `${linkClass} border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]`
+              ? "inline-flex h-9 min-w-9 items-center justify-center border-2 border-[var(--ink)] bg-[var(--accent)] px-2.5 font-pixel text-[10px] leading-none text-[var(--bg)]"
+              : linkClass
           }
         >
           {page}
@@ -59,11 +56,8 @@ export function Pagination({ currentPage, totalPages, basePath, searchParams }: 
       ))}
 
       {currentPage < totalPages && (
-        <Link
-          href={buildHref(basePath, currentPage + 1, searchParams)}
-          className={`${linkClass} border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]`}
-        >
-          下一页
+        <Link href={buildHref(basePath, currentPage + 1, searchParams)} className={`${linkClass} px-3`}>
+          NEXT &gt;
         </Link>
       )}
     </nav>

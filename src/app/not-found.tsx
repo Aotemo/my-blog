@@ -1,27 +1,36 @@
 import Link from "next/link";
+import { PixelSprite } from "@/components/pixel-icons";
+import { ThemeSync } from "@/components/theme-sync";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-1 items-center justify-center px-5 py-24">
-      <div className="text-center">
-        <p className="text-7xl font-black tracking-tighter text-[var(--accent)]">404</p>
-        <h1 className="mt-4 text-xl font-semibold tracking-tight">页面不存在</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">你访问的页面可能已被删除、移动，或者只是一个草稿。</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/"
-            className="inline-flex h-10 items-center rounded-full bg-[var(--accent)] px-5 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            返回首页
-          </Link>
-          <Link
-            href="/archive"
-            className="inline-flex h-10 items-center rounded-full border border-[var(--border)] px-5 text-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-          >
-            浏览归档
-          </Link>
-        </div>
+    <div className="relative flex flex-1 flex-col items-center justify-center px-5 py-24 text-center">
+      <ThemeSync />
+      <div className="fixed right-4 top-4">
+        <ThemeToggle />
       </div>
+
+      <PixelSprite className="h-12 w-12 text-[var(--accent)]" />
+
+      <p className="mt-8 font-pixel text-[clamp(28px,9vw,60px)] leading-none text-[var(--accent-2)]">
+        GAME OVER
+      </p>
+
+      <div className="pixel-divider mt-7 w-40" aria-hidden />
+
+      <h1 className="mt-7 text-xl font-bold tracking-tight">页面不存在</h1>
+      <p className="mt-2 max-w-sm text-sm leading-[1.8] text-[var(--muted)]">
+        这个关卡不存在，或者已经被删除、移动。
+      </p>
+
+      <Link
+        href="/"
+        className="pixel-btn pixel-btn-primary mt-10 h-12 px-6 font-pixel text-[10px] leading-none"
+      >
+        &gt; PRESS START
+      </Link>
+      <p className="mt-3 font-pixel text-[8px] leading-none text-[var(--muted)]">TO GO HOME</p>
     </div>
   );
 }

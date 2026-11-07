@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentForm } from "@/components/comment-form";
 import { MarkdownArticle } from "@/components/markdown-article";
+import { PixelClock, PixelEye } from "@/components/pixel-icons";
+import { ReadingProgress } from "@/components/reading-progress";
 import { TableOfContents } from "@/components/toc";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { extractToc, readingTime } from "@/lib/markdown";
@@ -44,49 +46,62 @@ export default async function PostDetailPage({ params }: Props) {
   const approvedComments = post.comments;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-10">
-      <Link
-        href="/"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-[var(--muted)] transition hover:text-[var(--accent)]"
-      >
-        <span aria-hidden>←</span> 返回首页
-      </Link>
+    <>
+      <ReadingProgress />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="mx-auto w-full max-w-[680px] px-5 py-10">
+        <Link
+          href="/"
+          className="pixel-link inline-flex items-center gap-1.5 px-1 font-pixel text-[10px] text-[var(--muted)]"
+        >
+          <span aria-hidden>&lt;</span> BACK
+        </Link>
+
         <article>
-          <header className="border-b border-[var(--border)] pb-6">
-            <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[var(--muted)]">
-              <time dateTime={post.publishedAt?.toISOString() ?? undefined}>{formatDate(post.publishedAt)}</time>
+          <header className="mt-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] leading-none text-[var(--muted)]">
+              <time
+                className="font-pixel leading-none"
+                dateTime={post.publishedAt?.toISOString() ?? undefined}
+              >
+                {formatDate(post.publishedAt)}
+              </time>
+
               {post.category && (
-                <>
-                  <span className="text-[var(--border)]">/</span>
-                  <Link
-                    href={`/categories/${post.category.slug}`}
-                    className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 font-medium text-[var(--accent)]"
-                  >
-                    {post.category.name}
-                  </Link>
-                </>
+                <Link
+                  href={`/categories/${post.category.slug}`}
+                  className="pixel-link px-1 text-[var(--accent)]"
+                >
+                  [{post.category.name}]
+                </Link>
               )}
-              <span>{minutes} 分钟阅读</span>
-              <span>{formatNumber(viewCount)} 次阅读</span>
+
+              <span className="inline-flex items-center gap-1.5 font-pixel leading-none">
+                <PixelClock className="h-3 w-3" />
+                {minutes} MIN
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 font-pixel leading-none">
+                <PixelEye className="h-3 w-3" />
+                {formatNumber(viewCount)}
+              </span>
             </div>
 
-            <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
+            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{post.title}</h1>
 
             {post.summary && (
-              <p className="mt-4 border-l-2 border-[var(--accent)] pl-4 text-sm leading-relaxed text-[var(--muted)]">
+              <p className="mt-5 border-l-4 border-[var(--accent-2)] bg-[var(--tag-bg)] px-4 py-3 text-[15px] leading-[1.8] text-[var(--muted)]">
                 {post.summary}
               </p>
             )}
 
             {post.tags.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-1.5">
                 {post.tags.map((tag) => (
                   <Link
                     key={tag.id}
                     href={`/tags/${tag.slug}`}
-                    className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    className="pixel-tag text-[11px] text-[var(--fg)]"
                   >
                     #{tag.name}
                   </Link>
@@ -99,80 +114,108 @@ export default async function PostDetailPage({ params }: Props) {
             <img
               src={post.coverImage}
               alt={post.title}
-              className="mt-6 w-full rounded-2xl border border-[var(--border)] object-cover"
+              className="mt-7 w-full border-2 border-[var(--ink)] object-cover"
             />
+          )}
+
+          {toc.length > 0 && (
+            <details className="mt-7 border-2 border-[var(--ink)] bg-[var(--surface)] px-4 py-3 xl:hidden">
+              <summary className="flex items-center justify-between font-pixel text-[9px] leading-none">
+                <span>TABLE OF CONTENTS</span>
+                <span className="text-[var(--accent-2)]" aria-hidden>
+                  +
+                </span>
+              </summary>
+              <ul className="mt-3 space-y-2 border-t-2 border-dashed border-[var(--border)] pt-3 text-[13px] leading-snug">
+                {toc.map((item) => (
+                  <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
+                    <a href={`#${item.id}`} className="pixel-link block px-1 py-0.5 text-[var(--muted)]">
+                      {item.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
 
           <div className="mt-8">
             <MarkdownArticle content={post.content} />
           </div>
 
-          <nav className="mt-12 grid gap-3 border-t border-[var(--border)] pt-6 sm:grid-cols-2">
+          <nav className="mt-14 grid gap-4 border-t-2 border-[var(--ink)] pt-6 sm:grid-cols-2" aria-label="相邻文章">
             {adjacent.previous ? (
               <Link
                 href={`/posts/${adjacent.previous.slug}`}
-                className="rounded-xl border border-[var(--border)] p-4 transition hover:border-[var(--accent)]"
+                className="border-2 border-[var(--border)] p-4 transition-colors duration-75 hover:border-[var(--ink)]"
               >
-                <span className="text-xs text-[var(--muted)]">上一篇</span>
-                <p className="mt-1 text-sm font-medium leading-snug">{adjacent.previous.title}</p>
+                <span className="font-pixel text-[8px] text-[var(--muted)]">&lt; PREV</span>
+                <p className="mt-2 text-sm font-medium leading-snug">{adjacent.previous.title}</p>
               </Link>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
             {adjacent.next ? (
               <Link
                 href={`/posts/${adjacent.next.slug}`}
-                className="rounded-xl border border-[var(--border)] p-4 text-right transition hover:border-[var(--accent)]"
+                className="border-2 border-[var(--border)] p-4 text-right transition-colors duration-75 hover:border-[var(--ink)]"
               >
-                <span className="text-xs text-[var(--muted)]">下一篇</span>
-                <p className="mt-1 text-sm font-medium leading-snug">{adjacent.next.title}</p>
+                <span className="font-pixel text-[8px] text-[var(--muted)]">NEXT &gt;</span>
+                <p className="mt-2 text-sm font-medium leading-snug">{adjacent.next.title}</p>
               </Link>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
           </nav>
 
-          <section id="comments" className="mt-12">
-            <h2 className="text-lg font-semibold tracking-tight">
-              评论 <span className="text-sm font-normal text-[var(--muted)]">({approvedComments.length})</span>
-            </h2>
+          <section id="comments" className="mt-14">
+            <div className="flex items-center gap-3">
+              <h2 className="font-pixel text-[10px] leading-none">COMMENTS</h2>
+              <span className="pixel-divider flex-1" aria-hidden />
+              <span className="font-pixel text-[10px] leading-none text-[var(--muted)]">
+                {String(approvedComments.length).padStart(2, "0")}
+              </span>
+            </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-5">
               {approvedComments.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--muted)]">
-                  还没有评论，来说点什么吧。
+                <p className="border-2 border-dashed border-[var(--border)] px-5 py-8 text-center text-sm text-[var(--muted)]">
+                  NO COMMENTS YET / 还没有评论，来说点什么吧。
                 </p>
               ) : (
-                approvedComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
-                      <span className="font-medium text-[var(--foreground)]">{comment.author}</span>
-                      <time dateTime={comment.createdAt.toISOString()}>{formatDateTime(comment.createdAt)}</time>
+                <div>
+                  {approvedComments.map((comment) => (
+                    <div key={comment.id} className="border-b-2 border-dashed border-[var(--border)] py-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="text-sm font-bold">{comment.author}</span>
+                        <time
+                          className="font-pixel text-[8px] leading-none text-[var(--muted)]"
+                          dateTime={comment.createdAt.toISOString()}
+                        >
+                          {formatDateTime(comment.createdAt)}
+                        </time>
+                      </div>
+                      <p className="mt-2 whitespace-pre-line text-[15px] leading-[1.8]">{comment.content}</p>
                     </div>
-                    <p className="whitespace-pre-line text-sm leading-relaxed">{comment.content}</p>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-              <h3 className="mb-4 text-sm font-semibold">留下你的想法</h3>
-              <CommentForm postSlug={post.slug} />
+            <div className="pixel-frame mt-8 p-5 sm:p-6">
+              <h3 className="font-pixel text-[9px] leading-none">LEAVE A COMMENT</h3>
+              <div className="mt-4">
+                <CommentForm postSlug={post.slug} />
+              </div>
             </div>
           </section>
         </article>
-
-        {toc.length > 0 && (
-          <div className="hidden lg:block">
-            <div className="sticky top-24">
-              <TableOfContents items={toc} />
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+
+      {toc.length > 0 && (
+        <aside className="fixed left-[calc(50%+380px)] top-28 hidden w-48 xl:block" aria-label="文章目录">
+          <TableOfContents items={toc} />
+        </aside>
+      )}
+    </>
   );
 }

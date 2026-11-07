@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Pagination } from "@/components/pagination";
+import { PixelSprite } from "@/components/pixel-icons";
 import { PostCard } from "@/components/post-card";
-import { SiteSidebar } from "@/components/site-sidebar";
 import { getSiteSettings } from "@/lib/settings";
-import { getSidebarData, listPublishedPosts } from "@/lib/posts";
+import { listPublishedPosts } from "@/lib/posts";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
@@ -19,55 +20,70 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   const { page } = await searchParams;
   const currentPage = Math.max(1, Number(page) || 1);
 
-  const [result, sidebar, settings] = await Promise.all([
+  const [result, settings] = await Promise.all([
     listPublishedPosts({ page: currentPage }),
-    getSidebarData(),
     getSiteSettings(),
   ]);
 
   const { posts, total, totalPages } = result;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-10">
-      <section className="mb-10 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">Journal</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{settings.siteTitle}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-          {settings.siteDescription}
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--muted)]">
-          <span>共 {total} 篇文章</span>
-          <span>{sidebar.categories.length} 个分类</span>
-          <span>{sidebar.tags.length} 个标签</span>
-          <span>作者：{settings.authorName}</span>
+    <div className="mx-auto w-full max-w-[680px] px-5 py-10 sm:py-14">
+      <section className="pixel-frame p-6 sm:p-8">
+        <div className="flex items-start gap-5">
+          <div className="shrink-0 border-2 border-[var(--ink)] bg-[var(--tag-bg)] p-1.5">
+            <PixelSprite className="pixel-avatar h-11 w-11 text-[var(--accent)]" />
+          </div>
+
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-pixel text-[10px] leading-relaxed text-[var(--accent)]">
+              <span>&gt; HELLO, I&apos;M</span>
+              <span className="font-sans text-lg font-bold tracking-tight text-[var(--fg)]">
+                {settings.authorName}
+              </span>
+              <span className="pixel-cursor text-[var(--accent-2)]" aria-hidden>
+                _
+              </span>
+            </p>
+
+            <p className="mt-4 text-[15px] leading-[1.8] text-[var(--muted)]">
+              {settings.siteDescription}
+            </p>
+
+            <Link
+              href="/about"
+              className="pixel-link mt-5 inline-flex items-center gap-1.5 font-pixel text-[9px] text-[var(--accent)]"
+            >
+              ABOUT ME <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
       </section>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">最新文章</h2>
-            <span className="text-xs text-[var(--muted)]">
-              第 {currentPage} / {totalPages} 页
-            </span>
-          </div>
+      <div className="mt-12 flex items-center gap-3">
+        <span className="font-pixel text-[9px] leading-none text-[var(--muted)]">LATEST POSTS</span>
+        <span className="pixel-divider flex-1" aria-hidden />
+        <span className="font-pixel text-[9px] leading-none text-[var(--muted)]">
+          {String(currentPage).padStart(2, "0")}/{String(totalPages).padStart(2, "0")}
+        </span>
+      </div>
 
-          {posts.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] p-10 text-center text-sm text-[var(--muted)]">
-              还没有已发布的文章，去后台写第一篇吧。
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {posts.map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            </div>
-          )}
-
-          <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/" />
+      {posts.length === 0 ? (
+        <div className="mt-10 border-2 border-dashed border-[var(--border)] px-6 py-14 text-center">
+          <p className="font-pixel text-[11px] text-[var(--muted)]">NO POSTS FOUND</p>
+          <p className="mt-3 text-sm text-[var(--muted)]">还没有已发布的文章。</p>
         </div>
+      ) : (
+        <div className="mt-2">
+          {posts.map((post) => (
+            <PostCard key={post.id} post={post} />
+          ))}
+        </div>
+      )}
 
-        <SiteSidebar {...sidebar} />
+      <div className="mt-10 flex items-center justify-between gap-4">
+        <span className="text-xs text-[var(--muted)]">共 {total} 篇</span>
+        <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/" />
       </div>
     </div>
   );

@@ -34,19 +34,22 @@ export function TableOfContents({ items }: { items: TocItem[] }) {
   if (items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">目录</p>
-      <ul className="space-y-1.5 text-sm">
+    <div>
+      <p className="mb-3 border-b-2 border-dashed border-[var(--border)] pb-2 font-pixel text-[8px] leading-none text-[var(--muted)]">
+        ON THIS PAGE
+      </p>
+      <ul className="space-y-2 text-[13px] leading-snug">
         {items.map((item) => (
           <li key={item.id} style={{ paddingLeft: `${(item.level - 2) * 12}px` }}>
             <a
               href={`#${item.id}`}
-              className={`block border-l-2 py-0.5 pl-3 leading-snug transition ${
+              className={`pixel-link block px-1 py-0.5 ${
                 activeId === item.id
-                  ? "border-[var(--accent)] font-medium text-[var(--accent)]"
-                  : "border-transparent text-[var(--muted)] hover:border-[var(--border)] hover:text-[var(--foreground)]"
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "text-[var(--muted)]"
               }`}
             >
+              {activeId === item.id && <span className="mr-1 text-[var(--accent-2)]">&gt;</span>}
               {item.text}
             </a>
           </li>

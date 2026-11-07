@@ -12,7 +12,7 @@ export default async function AdminPanelLayout({ children }: { children: React.R
   const settings = await getSiteSettings();
 
   return (
-    <div className="min-h-screen bg-[var(--background)] lg:flex">
+    <div className="admin-ui min-h-screen bg-[var(--background)] lg:flex">
       <aside className="border-b border-[var(--border)] bg-[var(--surface)] lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-4 p-4">
           <div className="flex items-center justify-between gap-3">

@@ -16,39 +16,44 @@ export default async function ArchivePage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-10">
-      <h1 className="text-3xl font-bold tracking-tight">归档</h1>
+    <div className="mx-auto w-full max-w-[680px] px-5 py-10 sm:py-14">
+      <p className="font-pixel text-[8px] leading-none text-[var(--accent)]">ARCHIVE</p>
+      <h1 className="mt-3 text-3xl font-bold tracking-tight">归档</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">共 {total} 篇文章</p>
 
       {groups.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">
-          还没有已发布的文章。
+        <p className="mt-8 border-2 border-dashed border-[var(--border)] px-6 py-12 text-center font-pixel text-[10px] text-[var(--muted)]">
+          NO POSTS
         </p>
       ) : (
-        <div className="mt-8 space-y-10">
+        <div className="mt-10 space-y-12">
           {groups.map((group) => (
             <section key={group.year}>
-              <div className="mb-4 flex items-baseline gap-3">
-                <h2 className="text-2xl font-bold tracking-tight">{group.year}</h2>
-                <span className="text-xs text-[var(--muted)]">
-                  {group.months.reduce((sum, month) => sum + month.posts.length, 0)} 篇
+              <div className="flex items-center gap-3">
+                <h2 className="font-pixel text-base leading-none">{group.year}</h2>
+                <span className="pixel-divider flex-1" aria-hidden />
+                <span className="font-pixel text-[8px] leading-none text-[var(--muted)]">
+                  {group.months.reduce((sum, month) => sum + month.posts.length, 0)} POSTS
                 </span>
               </div>
 
-              <div className="space-y-6 border-l border-[var(--border)] pl-5">
+              <div className="mt-5 space-y-7">
                 {group.months.map((month) => (
                   <div key={`${group.year}-${month.month}`}>
-                    <h3 className="mb-2 text-sm font-semibold text-[var(--muted)]">{month.month} 月</h3>
-                    <ul className="space-y-2.5">
+                    <h3 className="font-pixel text-[9px] leading-none text-[var(--muted)]">
+                      {String(month.month).padStart(2, "0")}
+                      <span className="ml-1.5 font-sans text-[11px]">月</span>
+                    </h3>
+                    <ul className="mt-3 space-y-2.5">
                       {month.posts.map((post) => (
-                        <li key={post.id} className="flex items-baseline gap-3 text-sm">
-                          <time className="shrink-0 font-mono text-xs text-[var(--muted)]">
-                            {String(post.publishedAt ? new Date(post.publishedAt).getDate() : 1).padStart(2, "0")}
-                          </time>
-                          <Link
-                            href={`/posts/${post.slug}`}
-                            className="leading-snug transition hover:text-[var(--accent)]"
-                          >
+                        <li key={post.id} className="flex items-baseline gap-3 text-[15px]">
+                          <span className="w-6 shrink-0 font-pixel text-[9px] leading-none text-[var(--muted)]">
+                            {String(post.publishedAt ? new Date(post.publishedAt).getDate() : 1).padStart(
+                              2,
+                              "0",
+                            )}
+                          </span>
+                          <Link href={`/posts/${post.slug}`} className="pixel-link px-1 leading-snug">
                             {post.title}
                           </Link>
                         </li>

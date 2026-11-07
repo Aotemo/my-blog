@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Pagination } from "@/components/pagination";
 import { PostCard } from "@/components/post-card";
@@ -36,26 +37,28 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   });
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-10">
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">Category</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight">{category.name}</h1>
+    <div className="mx-auto w-full max-w-[680px] px-5 py-10 sm:py-14">
+      <Link href="/categories" className="pixel-link px-1 font-pixel text-[8px] text-[var(--muted)]">
+        &lt; CATEGORIES
+      </Link>
+
+      <p className="mt-5 font-pixel text-[8px] leading-none text-[var(--accent)]">CATEGORY</p>
+      <h1 className="mt-3 text-3xl font-bold tracking-tight">{category.name}</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">共 {total} 篇文章</p>
 
-      <div className="mt-8 space-y-4">
+      <div className="mt-4">
         {posts.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">
-            该分类下还没有已发布的文章。
+          <p className="mt-6 border-2 border-dashed border-[var(--border)] px-6 py-12 text-center font-pixel text-[10px] text-[var(--muted)]">
+            NO POSTS
           </p>
         ) : (
           posts.map((post) => <PostCard key={post.id} post={post} />)
         )}
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        basePath={`/categories/${slug}`}
-      />
+      <div className="mt-10">
+        <Pagination currentPage={currentPage} totalPages={totalPages} basePath={`/categories/${slug}`} />
+      </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import rehypeSlug from "rehype-slug";
 
 export function MarkdownArticle({ content }: { content: string }) {
   return (
-    <div className="prose prose-slate max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-headings:font-semibold prose-a:text-[var(--accent)] prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-blockquote:border-l-[var(--accent)] prose-blockquote:not-italic prose-blockquote:text-[var(--muted)]">
+    <div className="prose-article">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSlug, [rehypeHighlight, { detect: true, ignoreMissing: true }]]}
@@ -24,7 +24,7 @@ export function MarkdownArticle({ content }: { content: string }) {
             );
           },
           img({ src, alt, title }) {
-            return <img src={src} alt={alt ?? ""} title={title} loading="lazy" className="mx-auto" />;
+            return <img src={src} alt={alt ?? ""} title={title} loading="lazy" />;
           },
           table({ children }) {
             return (

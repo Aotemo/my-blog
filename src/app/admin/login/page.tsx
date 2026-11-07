@@ -21,7 +21,7 @@ export default async function AdminLoginPage({ searchParams }: Props) {
   const settings = await getSiteSettings();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-5 py-12">
+    <div className="admin-ui flex min-h-screen items-center justify-center bg-[var(--background)] px-5 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--accent)]">

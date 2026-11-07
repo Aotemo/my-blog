@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { monoFont, pixelFont } from "@/lib/fonts";
 import { getSiteSettings, getSiteUrl } from "@/lib/settings";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
@@ -41,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning className={`${pixelFont.variable} ${monoFont.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
