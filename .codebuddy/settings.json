@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Write", "Edit", "MultiEdit", "Glob", "Grep",
+      "Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)",
+      "Bash(git init:*)", "Bash(git status:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(git log:*)", "Bash(git diff:*)", "Bash(git rm:*)", "Bash(git mv:*)",
+      "Bash(curl:*)", "Bash(ls:*)", "Bash(mkdir:*)", "Bash(mv:*)", "Bash(cp:*)",
+      "Bash(cat:*)", "Bash(touch:*)", "Bash(pkill -f next:*)", "Bash(kill:*)",
+      "Bash(sleep:*)", "Bash(rm -rf .next:*)", "Bash(rm -rf node_modules:*)"
+    ],
+    "deny": ["Bash(git push:*)", "Bash(sudo:*)"]
+  }
+}

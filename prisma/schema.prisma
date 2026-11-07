@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  summary     String    @default("")
+  content     String    @default("")
+  coverImage  String?
+  status      String    @default("DRAFT")
+  viewCount   Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  tags     Tag[]     @relation("PostTags")
+  comments Comment[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]   @relation("PostTags")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    String
+  email     String?
+  content   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([postId, approved])
+}
+
+model SiteSetting {
+  id              String @id @default("site")
+  siteTitle       String @default("我的博客")
+  siteDescription String @default("记录技术与生活")
+  authorName      String @default("站长")
+  authorBio       String @default("")
+  avatarUrl       String?
+  githubUrl       String?
+}
