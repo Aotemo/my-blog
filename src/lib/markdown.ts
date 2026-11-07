@@ -1,34 +1,10 @@
+import GithubSlugger from "github-slugger";
+
 export type TocItem = {
   id: string;
   text: string;
   level: number;
 };
-
-/**
- * 生成与 rehype-slug（github-slugger）一致的标题 id。
- */
-export function slugifyHeading(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}\s-]/gu, "")
-    .replace(/\s+/g, "-");
-}
-
-function createSlugger() {
-  const used = new Map<string, number>();
-  return (text: string) => {
-    const base = slugifyHeading(text) || "section";
-    const count = used.get(base);
-    if (count === undefined) {
-      used.set(base, 0);
-      return base;
-    }
-    const next = count + 1;
-    used.set(base, next);
-    return `${base}-${next}`;
-  };
-}
 
 function stripInlineMarkdown(text: string): string {
   return text
@@ -42,10 +18,11 @@ function stripInlineMarkdown(text: string): string {
 
 /**
  * 从 Markdown 正文中提取 h2/h3/h4 标题，生成目录。
+ * 使用 github-slugger（rehype-slug 内部同款实现），保证锚点与渲染结果一致。
  * 跳过代码块内部的内容。
  */
 export function extractToc(markdown: string): TocItem[] {
-  const slug = createSlugger();
+  const slugger = new GithubSlugger();
   const items: TocItem[] = [];
   const lines = markdown.split("\n");
   let inFence = false;
@@ -58,14 +35,18 @@ export function extractToc(markdown: string): TocItem[] {
     }
     if (inFence) continue;
 
-    const match = /^(#{2,4})\s+(.+?)\s*#*\s*$/.exec(line);
+    const match = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
     if (!match) continue;
 
     const level = match[1].length;
     const text = stripInlineMarkdown(match[2]);
     if (!text) continue;
 
-    items.push({ id: slug(text), text, level });
+    // h1 也交给 slugger，保持与整篇文档的标题编号一致
+    const id = slugger.slug(text);
+    if (level >= 2 && level <= 4) {
+      items.push({ id, text, level });
+    }
   }
 
   return items;

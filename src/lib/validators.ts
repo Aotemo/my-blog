@@ -23,8 +23,15 @@ export const postSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
 });
 
-export const postUpdateSchema = postSchema.partial().extend({
+export const postUpdateSchema = z.object({
+  title: z.string().trim().min(1, "标题不能为空").max(200, "标题过长").optional(),
+  slug: slugField.optional(),
+  summary: z.string().trim().max(500, "摘要过长").optional(),
+  content: z.string().optional(),
+  coverImage: z.string().trim().max(500).nullish(),
   status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+  categoryId: z.string().trim().min(1).nullish(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
 });
 
 export const categorySchema = z.object({
