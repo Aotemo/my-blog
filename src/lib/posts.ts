@@ -8,7 +8,13 @@ export const postListInclude = {
   tags: true,
 } satisfies Prisma.PostInclude;
 
-export type PostListItem = Prisma.PostGetPayload<{ include: typeof postListInclude }>;
+// 列表与列表型接口不返回完整正文，避免响应体过大
+export const postListOmit = { content: true } satisfies Prisma.PostOmit;
+
+export type PostListItem = Prisma.PostGetPayload<{
+  include: typeof postListInclude;
+  omit: typeof postListOmit;
+}>;
 
 export type PostListResult = {
   posts: PostListItem[];
@@ -52,6 +58,7 @@ export async function listPublishedPosts({
   const [posts, total] = await Promise.all([
     prisma.post.findMany({
       where,
+      omit: postListOmit,
       include: postListInclude,
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       skip: (safePage - 1) * pageSize,

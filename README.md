@@ -20,7 +20,7 @@
 - 账号密码登录，JWT 存于 httpOnly Cookie，中间件保护后台页面与写操作接口
 - 仪表盘：文章总数 / 已发布 / 草稿、评论总数 / 待审核、总阅读量、最近更新文章
 - 文章管理：按状态筛选、标题 / slug 搜索、分页、新建、编辑、删除、发布与撤回
-- Markdown 分屏编辑器：实时预览、标题自动生成 slug（可手改）、摘要、封面、分类、标签多选与新建、图片上传并插入 Markdown
+- Markdown 分屏编辑器：实时预览、标题自动生成 slug（可手改）、摘要、封面、分类、标签多选与新建、图片上传（PNG / JPEG / GIF / WebP，按文件头校验）并插入 Markdown
 - 分类 / 标签管理：增删改，删除分类后文章自动归为未分类
 - 评论管理：待审核 / 已通过筛选，一键通过、撤销通过、删除
 - 站点设置：站点标题、描述、作者信息、头像与 GitHub 链接；修改管理员密码
@@ -58,6 +58,12 @@ npm run dev
 
 默认管理员账号为 `admin` / `admin123`（取自 `.env` 的 `ADMIN_USERNAME` / `ADMIN_PASSWORD`，种子脚本执行时写入）。首次登录后建议在「站点设置」中修改密码。
 
+先生成一个随机 JWT 密钥填入 `.env`（`npm run start` 也运行在 production 模式，示例密钥或不足 32 位的密钥会被拒绝）：
+
+```bash
+openssl rand -base64 48
+```
+
 ### 生产模式
 
 ```bash
@@ -84,7 +90,7 @@ npm run start
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
 | `DATABASE_URL` | 是 | SQLite 连接串，默认 `file:./dev.db`（相对 `prisma/` 目录） |
-| `JWT_SECRET` | 是 | JWT 签名密钥，生产环境务必替换为随机长字符串 |
+| `JWT_SECRET` | 是 | JWT 签名密钥，至少 32 位；生产模式（含 `npm run start`）下缺失、过短或仍为示例值时会明确报错并拒绝签发 / 校验会话 |
 | `ADMIN_USERNAME` | 否 | 种子管理员用户名，默认 `admin` |
 | `ADMIN_PASSWORD` | 否 | 种子管理员密码，默认 `admin123` |
 | `NEXT_PUBLIC_SITE_URL` | 否 | 站点公开地址，用于 canonical、sitemap 与 RSS 中的绝对链接，默认 `http://localhost:3000` |
@@ -131,7 +137,7 @@ npm run start
 - `GET|POST /api/tags`、`PATCH|DELETE /api/tags/[id]`
 - `PATCH|DELETE /api/comments/[id]`
 - `GET|PUT /api/settings`、`PUT /api/settings/password`
-- `POST /api/upload`（multipart 字段 `file`，仅图片，≤ 5MB）
+- `POST /api/upload`（multipart 字段 `file`，仅 PNG / JPEG / GIF / WebP，按文件头魔数校验，≤ 5MB）
 
 未登录调用受保护接口返回 `401` JSON。
 
@@ -140,7 +146,7 @@ npm run start
 ### 自托管（推荐）
 
 1. 准备一台可持久化磁盘的服务器（Node.js 20+）。
-2. 拉取代码后 `npm install`，复制 `.env.example` 为 `.env` 并填写生产配置，务必修改 `JWT_SECRET` 与管理员密码。
+2. 拉取代码后 `npm install`，复制 `.env.example` 为 `.env` 并填写生产配置，务必修改管理员密码。`JWT_SECRET` 使用 `openssl rand -base64 48` 生成，不要保留示例值。
 3. 执行 `npm run db:setup` 初始化数据库。
 4. `npm run build && npm run start`，可用 systemd / PM2 常驻，前面挂 Nginx 反向代理。
 5. 需要持久化两个位置：
@@ -156,7 +162,7 @@ npm run start
 
 ## 安全提示
 
-- 生产环境必须替换 `JWT_SECRET`，并修改默认管理员密码。
+- 生产环境必须使用 `openssl rand -base64 48` 生成至少 32 位的 `JWT_SECRET`，并修改默认管理员密码；示例值或过短的密钥会让服务在登录 / 鉴权时直接报错拒绝运行。
 - 会话 Cookie 使用 httpOnly + SameSite=Lax；生产模式下启用 Secure，请通过 HTTPS 访问。
-- 上传接口只接受常见图片 MIME 类型且限制 5MB；SVG 可包含脚本，若开放给不可信用户请在网关层再做过滤。
+- 上传接口不信任客户端声明的 MIME 类型，只按文件头魔数识别 PNG / JPEG / GIF / WebP，并限制 5MB；SVG 因可携带脚本已不再支持。
 - 仓库不会提交 `.env`、数据库文件、`node_modules`、`.next` 与上传内容。
