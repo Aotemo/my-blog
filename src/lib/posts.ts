@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { PAGE_SIZE, POST_STATUS } from "./constants";
 import prisma from "./prisma";
+import { slugifyName } from "./slug";
 
 export const postListInclude = {
   category: true,
@@ -174,4 +175,29 @@ export async function getSidebarData() {
   ]);
 
   return { categories, tags, recentPosts };
+}
+
+/**
+ * 按名称找到已有标签，不存在则创建；返回标签 id 列表。
+ * 编辑器中允许直接输入新标签名。
+ */
+export async function resolveTagIds(names: string[]): Promise<string[]> {
+  const unique = Array.from(new Set(names.map((name) => name.trim()).filter(Boolean)));
+  const ids: string[] = [];
+
+  for (const name of unique) {
+    const slug = slugifyName(name);
+    const existing = await prisma.tag.findFirst({
+      where: { OR: [{ name }, { slug }] },
+      select: { id: true },
+    });
+    if (existing) {
+      ids.push(existing.id);
+      continue;
+    }
+    const created = await prisma.tag.create({ data: { name, slug }, select: { id: true } });
+    ids.push(created.id);
+  }
+
+  return ids;
 }
