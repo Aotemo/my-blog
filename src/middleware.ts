@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE_NAME } from "@/lib/constants";
 import { JwtConfigError, verifySessionToken } from "@/lib/jwt";
+import { buildAbsoluteUrl } from "@/lib/url";
 
 const PUBLIC_ADMIN_PATHS = ["/admin/login"];
 
@@ -40,9 +41,8 @@ export async function middleware(request: NextRequest) {
     }
     if (state.valid) return NextResponse.next();
 
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/admin/login";
-    loginUrl.search = `?next=${encodeURIComponent(pathname)}`;
+    const loginUrl = buildAbsoluteUrl(request, "/admin/login");
+    loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
