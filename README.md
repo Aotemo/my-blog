@@ -86,6 +86,19 @@ npm run start
 | `npm run db:studio` | 打开 Prisma Studio |
 | `npm run db:reset` | 重置数据库并重新写入种子数据（会清空数据） |
 
+## 升级（已有数据库）
+
+从旧版本拉取新代码后，按顺序执行：
+
+```bash
+npm install
+npx prisma migrate deploy   # 开发环境也可以使用 npx prisma migrate dev
+npx prisma generate
+# 然后重启服务：npm run build && npm run start（或 npm run dev）
+```
+
+不要跳过 `npx prisma generate`：旧 Prisma Client 不认识迁移新增的字段，执行 seed 或运行时可能报错。升级前建议备份 `prisma/dev.db`。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
