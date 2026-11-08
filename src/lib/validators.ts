@@ -12,6 +12,13 @@ export const loginSchema = z.object({
   password: z.string().min(1, "请输入密码"),
 });
 
+const publishedAtField = z
+  .string()
+  .trim()
+  .min(1, "发布时间格式不正确")
+  .refine((value) => !Number.isNaN(Date.parse(value)), "发布时间格式不正确")
+  .nullish();
+
 export const postSchema = z.object({
   title: z.string().trim().min(1, "标题不能为空").max(200, "标题过长"),
   slug: slugField,
@@ -19,6 +26,7 @@ export const postSchema = z.object({
   content: z.string().default(""),
   coverImage: z.string().trim().max(500).nullish(),
   status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
+  publishedAt: publishedAtField,
   categoryId: z.string().trim().min(1).nullish(),
   tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
 });
@@ -30,6 +38,7 @@ export const postUpdateSchema = z.object({
   content: z.string().optional(),
   coverImage: z.string().trim().max(500).nullish(),
   status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+  publishedAt: publishedAtField,
   categoryId: z.string().trim().min(1).nullish(),
   tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
 });
@@ -46,6 +55,7 @@ export const tagSchema = z.object({
 
 export const commentSchema = z.object({
   postSlug: z.string().trim().min(1, "缺少文章标识"),
+  parentId: z.string().trim().min(1).nullish(),
   author: z.string().trim().min(1, "请填写昵称").max(50, "昵称过长"),
   email: z
     .string()
@@ -59,6 +69,10 @@ export const commentSchema = z.object({
 
 export const commentModerationSchema = z.object({
   approved: z.boolean(),
+});
+
+export const adminReplySchema = z.object({
+  content: z.string().trim().min(1, "回复内容不能为空").max(2000, "回复内容过长"),
 });
 
 export const settingsSchema = z.object({

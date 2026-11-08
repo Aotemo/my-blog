@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
-import { POST_STATUS } from "@/lib/constants";
 import prisma from "@/lib/prisma";
 import { getSiteUrl } from "@/lib/settings";
+import { publishedPostWhere } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [posts, categories, tags] = await Promise.all([
     prisma.post.findMany({
-      where: { status: POST_STATUS.PUBLISHED },
+      where: publishedPostWhere(),
       select: { slug: true, updatedAt: true, publishedAt: true },
     }),
     prisma.category.findMany({ select: { slug: true } }),

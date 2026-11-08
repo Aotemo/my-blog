@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError, jsonOk, unauthorized, zodErrorMessage } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { POST_STATUS } from "@/lib/constants";
+import { publishedPostWhere } from "@/lib/visibility";
 import prisma from "@/lib/prisma";
 import { slugifyName } from "@/lib/slug";
 import { categorySchema } from "@/lib/validators";
@@ -10,7 +10,7 @@ export async function GET() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { posts: { where: { status: POST_STATUS.PUBLISHED } } } },
+      _count: { select: { posts: { where: publishedPostWhere() } } },
     },
   });
   return jsonOk(categories);

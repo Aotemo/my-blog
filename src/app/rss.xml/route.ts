@@ -1,6 +1,6 @@
-import { POST_STATUS } from "@/lib/constants";
 import prisma from "@/lib/prisma";
 import { getSiteSettings, getSiteUrl } from "@/lib/settings";
+import { publishedPostWhere } from "@/lib/visibility";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function GET() {
   const [settings, posts] = await Promise.all([
     getSiteSettings(),
     prisma.post.findMany({
-      where: { status: POST_STATUS.PUBLISHED },
+      where: publishedPostWhere(),
       orderBy: { publishedAt: "desc" },
       take: 20,
       include: { category: true },
@@ -28,7 +28,7 @@ export async function GET() {
   const items = posts
     .map((post) => {
       const url = `${base}/posts/${post.slug}`;
-      const pubDate = (post.publishedAt ?? post.createdAt).toUTCString();
+      const pubDate = post.publishedAt!.toUTCString();
       return `    <item>
       <title>${escapeXml(post.title)}</title>
       <link>${escapeXml(url)}</link>

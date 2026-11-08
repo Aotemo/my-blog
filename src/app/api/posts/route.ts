@@ -49,6 +49,8 @@ export async function POST(request: Request) {
 
   const tagIds = await resolveTagIds(input.tags);
   const published = input.status === POST_STATUS.PUBLISHED;
+  const suppliedPublishedAt = input.publishedAt ? new Date(input.publishedAt) : null;
+  const publishedAt = published ? (suppliedPublishedAt ?? new Date()) : suppliedPublishedAt;
 
   const post = await prisma.post.create({
     data: {
@@ -58,7 +60,8 @@ export async function POST(request: Request) {
       content: input.content,
       coverImage: input.coverImage || null,
       status: input.status,
-      publishedAt: published ? new Date() : null,
+      publishedAt,
+      contentUpdatedAt: null,
       categoryId: input.categoryId || null,
       tags: { connect: tagIds.map((id) => ({ id })) },
     },

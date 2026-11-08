@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getZonedParts } from "@/lib/format";
 import { getArchive } from "@/lib/posts";
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default async function ArchivePage() {
                       {month.posts.map((post) => (
                         <li key={post.id} className="flex items-baseline gap-3 text-[15px]">
                           <span className="w-6 shrink-0 font-pixel text-[9px] leading-none text-[var(--muted)]">
-                            {String(post.publishedAt ? new Date(post.publishedAt).getDate() : 1).padStart(
+                            {String(post.publishedAt ? getZonedParts(post.publishedAt).day : 1).padStart(
                               2,
                               "0",
                             )}

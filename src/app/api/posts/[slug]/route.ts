@@ -20,7 +20,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (!session) return unauthorized();
 
   const { slug } = await params;
-  const existing = await prisma.post.findUnique({ where: { slug } });
+  const existing = await prisma.post.findUnique({ where: { slug }, include: { tags: true } });
   if (!existing) return notFound("文章不存在");
 
   let payload: unknown;
@@ -46,9 +46,30 @@ export async function PATCH(request: Request, { params }: Params) {
   const nextStatus = input.status ?? existing.status;
 
   let publishedAt = existing.publishedAt;
+  if (input.publishedAt !== undefined) {
+    publishedAt = input.publishedAt ? new Date(input.publishedAt) : null;
+  }
   if (nextStatus === POST_STATUS.PUBLISHED && !publishedAt) {
     publishedAt = new Date();
   }
+
+  const nextCoverImage = input.coverImage !== undefined ? input.coverImage || null : existing.coverImage;
+  const nextCategoryId =
+    input.categoryId !== undefined ? input.categoryId || null : existing.categoryId;
+  const existingTagIds = existing.tags.map((tag) => tag.id).sort();
+  const nextTagIds = tagIds ? [...tagIds].sort() : existingTagIds;
+  const tagsChanged =
+    input.tags !== undefined &&
+    (nextTagIds.length !== existingTagIds.length ||
+      nextTagIds.some((id, index) => id !== existingTagIds[index]));
+
+  const contentChanged =
+    (input.title !== undefined && input.title !== existing.title) ||
+    (input.summary !== undefined && input.summary !== existing.summary) ||
+    (input.content !== undefined && input.content !== existing.content) ||
+    nextCoverImage !== existing.coverImage ||
+    nextCategoryId !== existing.categoryId ||
+    tagsChanged;
 
   const post = await prisma.post.update({
     where: { id: existing.id },
@@ -59,6 +80,7 @@ export async function PATCH(request: Request, { params }: Params) {
       ...(input.content !== undefined ? { content: input.content } : {}),
       ...(input.coverImage !== undefined ? { coverImage: input.coverImage || null } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(contentChanged ? { contentUpdatedAt: new Date() } : {}),
       publishedAt,
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId || null } : {}),
       ...(tagIds ? { tags: { set: tagIds.map((id) => ({ id })) } } : {}),

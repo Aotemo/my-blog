@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { POST_STATUS } from "@/lib/constants";
+import { publishedPostWhere } from "@/lib/visibility";
 import prisma from "@/lib/prisma";
 
 const ASCII = /^[\x20-\x7e]+$/;
@@ -15,7 +15,7 @@ export default async function TagsPage() {
   const tags = await prisma.tag.findMany({
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { posts: { where: { status: POST_STATUS.PUBLISHED } } } },
+      _count: { select: { posts: { where: publishedPostWhere() } } },
     },
   });
 

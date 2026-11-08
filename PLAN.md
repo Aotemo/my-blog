@@ -118,3 +118,73 @@
 - [ ] 375px 宽移动端无横向滚动、导航可用
 - [ ] `prefers-reduced-motion` 下无闪烁动画
 - [ ] `npm run lint`、`npm run build` 零错误；字体通过 next/font 自托管，无外部运行时字体请求
+
+---
+
+## 阶段 6：评论回复 + 文章发布时间管理
+
+### 6.1 评论回复
+
+**数据模型**（新增迁移，不得破坏现有数据）
+- `Comment` 新增：
+  - `parentId String?` → 自关联 `parent Comment? @relation("CommentReplies", ..., onDelete: Cascade)`，`replies Comment[]`
+  - `replyToName String?`：被回复人的昵称（用于展示 `@某某`）
+  - `isAdmin Boolean @default(false)`：博主回复标记
+- 索引：`@@index([parentId])`
+
+**结构规则（两级展示）**
+- 顶级评论 `parentId = null`。
+- 回复任何评论（无论顶级还是回复）时，`parentId` 一律指向**所属顶级评论**，`replyToName` 记录直接被回复者昵称 → 前台只有两层：顶级评论 + 其下平铺的回复列表（按时间正序），回复中显示 `@replyToName`。
+- 只能回复**已审核通过**且属于同一篇文章的评论；否则 400。
+- 删除顶级评论时级联删除其全部回复；删除单条回复不影响其他。
+
+**前台**
+- 每条已审核评论/回复有「REPLY」像素小按钮，点击后在该评论下方内联展开回复表单（同一时刻只展开一个），表单显示「回复 @xxx」并可取消。
+- 访客回复与普通评论一样进入待审核，提交后提示「已提交，审核后显示」。
+- 博主回复带像素风 `AUTHOR` / 「博主」徽章，样式区分。
+- 评论数统计（标题处 `COMMENTS 0N`）计入已审核的回复。
+- 未审核的回复前台不可见；若顶级评论未审核，其回复也不可见。
+
+**API**
+- `POST /api/comments`：入参增加可选 `parentId`；服务端校验并计算顶级 `parentId` 与 `replyToName`。
+- 新增 `POST /api/admin/comments/[id]/reply`（需鉴权）：博主回复，`author` 取 SiteSetting.authorName，`isAdmin = true`，**自动 approved = true**。
+
+**后台 `/admin/comments`**
+- 列表显示：所属文章、是否为回复（显示「回复 @xxx」与父评论摘要）、博主标记、审核状态。
+- 每条评论有「回复」操作：内联文本框，提交即发布博主回复。
+- 审核通过一条回复时，若其顶级评论尚未审核，给出提示（仍允许操作）。
+- 仪表盘待审核数包含回复。
+
+### 6.2 文章发布时间管理
+
+**数据模型**
+- `Post` 新增 `contentUpdatedAt DateTime?`：仅在标题/摘要/正文/封面/分类/标签变化时更新（**不能用 `updatedAt`，因为阅读量 +1 也会刷新它**）。迁移时用现有 `updatedAt` 回填。
+
+**规则**
+- 编辑器新增「发布时间」字段（`datetime-local`，以站点时区显示与输入）：
+  - 状态为「已发布」且发布时间为空 → 保存时设为当前时间。
+  - 可手动设为**过去时间**（补录/迁移旧文章）。
+  - 可设为**未来时间** → 即「定时发布」：状态仍为 `PUBLISHED`，但到时间前前台不可见。无需 cron，所有前台查询统一加 `publishedAt <= now()`。
+  - 撤回为草稿时**保留**原 publishedAt，再次发布时沿用（编辑器可手动修改/清空）。
+- **所有前台出口**必须统一使用同一个"可见文章"查询条件（抽到 `src/lib` 一处）：首页、文章详情、分类/标签/归档/搜索、上下篇、`GET /api/posts*`、sitemap、RSS、评论提交校验（不能对未公开文章评论）、关于页统计等。
+- 时区：新增 `src/lib/config.ts` 中 `SITE_TIMEZONE`（读取 `NEXT_PUBLIC_SITE_TIMEZONE`，默认 `Asia/Shanghai`），所有日期展示与 `datetime-local` 输入转换都显式使用该时区，**不依赖服务器本地时区**。`.env.example` 与 README 同步。
+
+**展示**
+- 文章页：显示发布日期；若 `contentUpdatedAt` 比 `publishedAt` 晚 1 天以上，额外显示 `UPDATED yyyy-mm-dd`。
+- 后台文章列表：状态列区分 `草稿` / `已发布` / `定时 (yyyy-mm-dd HH:mm)`；可按「定时」筛选；列表显示发布时间并支持按发布时间排序。
+- 仪表盘：增加「定时待发布」数量及最近一篇定时文章的发布时间。
+- 文章页 `generateMetadata` 带 `article:published_time` / `article:modified_time`；RSS `pubDate` 用 publishedAt。
+
+**种子数据**
+- 增加 1 篇定时发布（未来 7 天）的示例文章、1 条顶级评论下的访客回复（已审核）和 1 条博主回复，便于演示。
+
+### 验收标准（阶段 6）
+- [ ] 现有数据库可通过 `prisma migrate dev` 平滑升级，已有评论/文章不丢失；全新 `db:setup` 也成功
+- [ ] 访客可回复已审核评论，回复需审核；回复"回复"仍挂在顶级评论下并显示 `@昵称`
+- [ ] 对未审核评论、其他文章评论、不存在评论的回复返回 400/404
+- [ ] 后台博主回复立即可见并带博主徽章；删除顶级评论级联删除回复
+- [ ] 未来发布时间的文章在首页/详情/分类/标签/归档/搜索/API/sitemap/RSS 中均不可见，后台显示「定时」
+- [ ] 把定时文章发布时间改到过去后立即可见；手动设置过去时间后按该时间排序与归档
+- [ ] 阅读量增加不改变「UPDATED」日期；编辑正文后才更新
+- [ ] 日期展示与服务器时区无关（用 `TZ=UTC npm run start` 与 `TZ=America/New_York npm run start` 分别验证同一篇文章显示相同日期）
+- [ ] `npm run lint`、`npm run build` 零错误；前台新增 UI 遵循阶段 5 像素风格规范

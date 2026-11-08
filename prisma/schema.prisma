@@ -15,17 +15,18 @@ model User {
 }
 
 model Post {
-  id          String    @id @default(cuid())
-  title       String
-  slug        String    @unique
-  summary     String    @default("")
-  content     String    @default("")
-  coverImage  String?
-  status      String    @default("DRAFT")
-  viewCount   Int       @default(0)
-  publishedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  title            String
+  slug             String    @unique
+  summary          String    @default("")
+  content          String    @default("")
+  coverImage       String?
+  status           String    @default("DRAFT")
+  viewCount        Int       @default(0)
+  publishedAt      DateTime?
+  contentUpdatedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -54,24 +55,30 @@ model Tag {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    String
-  email     String?
-  content   String
-  approved  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  postId      String
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+  author      String
+  email       String?
+  content     String
+  replyToName String?
+  isAdmin     Boolean   @default(false)
+  approved    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
 
   @@index([postId, approved])
+  @@index([parentId])
 }
 
 model SiteSetting {
-  id              String @id @default("site")
-  siteTitle       String @default("我的博客")
-  siteDescription String @default("记录技术与生活")
-  authorName      String @default("站长")
-  authorBio       String @default("")
+  id              String  @id @default("site")
+  siteTitle       String  @default("我的博客")
+  siteDescription String  @default("记录技术与生活")
+  authorName      String  @default("站长")
+  authorBio       String  @default("")
   avatarUrl       String?
   githubUrl       String?
 }

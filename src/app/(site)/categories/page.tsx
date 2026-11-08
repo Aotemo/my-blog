@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { POST_STATUS } from "@/lib/constants";
+import { publishedPostWhere } from "@/lib/visibility";
 import prisma from "@/lib/prisma";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export default async function CategoriesPage() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
     include: {
-      _count: { select: { posts: { where: { status: POST_STATUS.PUBLISHED } } } },
+      _count: { select: { posts: { where: publishedPostWhere() } } },
     },
   });
 

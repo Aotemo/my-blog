@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { MarkdownArticle } from "@/components/markdown-article";
+import { SITE_TIMEZONE } from "@/lib/config";
+import { formatDateTimeLocal, parseDateTimeLocal } from "@/lib/format";
 import { slugify } from "@/lib/slug";
 
 export type EditorPost = {
@@ -14,6 +16,7 @@ export type EditorPost = {
   content: string;
   coverImage: string | null;
   status: string;
+  publishedAt: string | null;
   categoryId: string | null;
   tags: string[];
 };
@@ -41,6 +44,9 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
   const [content, setContent] = useState(post?.content ?? "");
   const [coverImage, setCoverImage] = useState(post?.coverImage ?? "");
   const [status, setStatus] = useState(post?.status ?? "DRAFT");
+  const [publishedAt, setPublishedAt] = useState(
+    post?.publishedAt ? formatDateTimeLocal(post.publishedAt) : "",
+  );
   const [categoryId, setCategoryId] = useState(post?.categoryId ?? "");
   const [selectedTags, setSelectedTags] = useState<string[]>(post?.tags ?? []);
   const [tagOptions, setTagOptions] = useState<Option[]>(tags);
@@ -54,6 +60,9 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const wordCount = useMemo(() => content.replace(/\s/g, "").length, [content]);
+  const parsedPublishedAt = publishedAt ? parseDateTimeLocal(publishedAt) : null;
+  const isScheduled =
+    status === "PUBLISHED" && parsedPublishedAt !== null && parsedPublishedAt.getTime() > Date.now();
 
   function handleTitleChange(value: string) {
     setTitle(value);
@@ -125,6 +134,16 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
     setSaving(true);
 
     try {
+      let publishedAtIso: string | null = null;
+      if (publishedAt.trim()) {
+        const parsedDate = parseDateTimeLocal(publishedAt);
+        if (!parsedDate) {
+          setError("发布时间格式不正确，请重新选择");
+          return;
+        }
+        publishedAtIso = parsedDate.toISOString();
+      }
+
       const body = {
         title,
         slug,
@@ -132,6 +151,7 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
         content,
         coverImage: coverImage.trim() || null,
         status,
+        publishedAt: publishedAtIso,
         categoryId: categoryId || null,
         tags: selectedTags,
       };
@@ -241,6 +261,27 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="publishedAt" className="mb-1.5 block text-sm font-medium">
+            发布时间（{SITE_TIMEZONE}）
+          </label>
+          <input
+            id="publishedAt"
+            type="datetime-local"
+            value={publishedAt}
+            onChange={(event) => setPublishedAt(event.target.value)}
+            className={`${inputClass} max-w-xs`}
+          />
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            已发布且留空时自动取当前时间；未来时间为定时发布。
+          </p>
+          {isScheduled && parsedPublishedAt && (
+            <p className="mt-1 text-xs text-[var(--accent-2)]">
+              定时发布：{formatDateTimeLocal(parsedPublishedAt).replace("T", " ")} 后前台可见
+            </p>
+          )}
         </div>
 
         <div className="sm:col-span-2">

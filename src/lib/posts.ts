@@ -1,7 +1,9 @@
 import type { Prisma } from "@prisma/client";
-import { PAGE_SIZE, POST_STATUS } from "./constants";
+import { PAGE_SIZE } from "./constants";
+import { getZonedParts } from "./format";
 import prisma from "./prisma";
 import { slugifyName } from "./slug";
+import { publishedPostWhere } from "./visibility";
 
 export const postListInclude = {
   category: true,
@@ -41,7 +43,7 @@ export async function listPublishedPosts({
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
 
   const where: Prisma.PostWhereInput = {
-    status: POST_STATUS.PUBLISHED,
+    ...publishedPostWhere(),
     ...(categorySlug ? { category: { slug: categorySlug } } : {}),
     ...(tagSlug ? { tags: { some: { slug: tagSlug } } } : {}),
     ...(query
@@ -77,12 +79,18 @@ export async function listPublishedPosts({
 
 export async function getPublishedPostBySlug(slug: string) {
   return prisma.post.findFirst({
-    where: { slug, status: POST_STATUS.PUBLISHED },
+    where: { slug, ...publishedPostWhere() },
     include: {
       ...postListInclude,
       comments: {
-        where: { approved: true },
+        where: { parentId: null, approved: true },
         orderBy: { createdAt: "asc" },
+        include: {
+          replies: {
+            where: { approved: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
       },
     },
   });
@@ -90,6 +98,7 @@ export async function getPublishedPostBySlug(slug: string) {
 
 export async function incrementViewCount(id: string) {
   try {
+    // 只更新阅读量，不触碰 contentUpdatedAt
     await prisma.post.update({
       where: { id },
       data: { viewCount: { increment: 1 } },
@@ -101,53 +110,60 @@ export async function incrementViewCount(id: string) {
 
 export async function getAdjacentPosts(post: { id: string; publishedAt: Date | null }) {
   const anchor = post.publishedAt ?? new Date();
+  const now = new Date();
+
   const [previous, next] = await Promise.all([
     prisma.post.findFirst({
       where: {
-        status: POST_STATUS.PUBLISHED,
-        id: { not: post.id },
-        publishedAt: { lt: anchor },
+        AND: [
+          publishedPostWhere(now),
+          { id: { not: post.id }, publishedAt: { lt: anchor } },
+        ],
       },
       orderBy: { publishedAt: "desc" },
       select: { title: true, slug: true },
     }),
     prisma.post.findFirst({
       where: {
-        status: POST_STATUS.PUBLISHED,
-        id: { not: post.id },
-        publishedAt: { gt: anchor },
+        AND: [
+          publishedPostWhere(now),
+          { id: { not: post.id }, publishedAt: { gt: anchor } },
+        ],
       },
       orderBy: { publishedAt: "asc" },
       select: { title: true, slug: true },
     }),
   ]);
+
   return { previous, next };
 }
 
 export type ArchiveGroup = {
   year: number;
-  months: { month: number; posts: { id: string; title: string; slug: string; publishedAt: Date | null }[] }[];
+  months: {
+    month: number;
+    posts: { id: string; title: string; slug: string; publishedAt: Date | null }[];
+  }[];
 };
 
 export async function getArchive(): Promise<ArchiveGroup[]> {
   const posts = await prisma.post.findMany({
-    where: { status: POST_STATUS.PUBLISHED },
+    where: publishedPostWhere(),
     orderBy: { publishedAt: "desc" },
-    select: { id: true, title: true, slug: true, publishedAt: true, createdAt: true },
+    select: { id: true, title: true, slug: true, publishedAt: true },
   });
 
   const groups: ArchiveGroup[] = [];
   for (const post of posts) {
-    const date = post.publishedAt ?? post.createdAt;
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
+    if (!post.publishedAt) continue;
+    const { year, month } = getZonedParts(post.publishedAt);
 
-    let yearGroup = groups.find((g) => g.year === year);
+    let yearGroup = groups.find((group) => group.year === year);
     if (!yearGroup) {
       yearGroup = { year, months: [] };
       groups.push(yearGroup);
     }
-    let monthGroup = yearGroup.months.find((m) => m.month === month);
+    let monthGroup = yearGroup.months.find((entry) => entry.month === month);
     if (!monthGroup) {
       monthGroup = { month, posts: [] };
       yearGroup.months.push(monthGroup);
@@ -161,27 +177,6 @@ export async function getArchive(): Promise<ArchiveGroup[]> {
   }
 
   return groups;
-}
-
-export async function getSidebarData() {
-  const [categories, tags, recentPosts] = await Promise.all([
-    prisma.category.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { posts: { where: { status: POST_STATUS.PUBLISHED } } } } },
-    }),
-    prisma.tag.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { posts: { where: { status: POST_STATUS.PUBLISHED } } } } },
-    }),
-    prisma.post.findMany({
-      where: { status: POST_STATUS.PUBLISHED },
-      orderBy: { publishedAt: "desc" },
-      take: 5,
-      select: { id: true, title: true, slug: true, publishedAt: true },
-    }),
-  ]);
-
-  return { categories, tags, recentPosts };
 }
 
 /**

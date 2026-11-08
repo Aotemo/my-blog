@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CommentForm } from "@/components/comment-form";
+import { CommentThread } from "@/components/comment-thread";
 import { MarkdownArticle } from "@/components/markdown-article";
 import { PixelClock, PixelEye } from "@/components/pixel-icons";
 import { ReadingProgress } from "@/components/reading-progress";
 import { TableOfContents } from "@/components/toc";
-import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 import { extractToc, readingTime } from "@/lib/markdown";
 import { getAdjacentPosts, getPublishedPostBySlug, incrementViewCount } from "@/lib/posts";
 
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title,
       description: post.summary || undefined,
       publishedTime: post.publishedAt?.toISOString(),
+      modifiedTime: (post.contentUpdatedAt ?? post.publishedAt)?.toISOString(),
       tags: post.tags.map((tag) => tag.name),
       images: post.coverImage ? [{ url: post.coverImage }] : undefined,
     },
@@ -44,6 +46,31 @@ export default async function PostDetailPage({ params }: Props) {
   const adjacent = await getAdjacentPosts(post);
   const minutes = readingTime(post.content);
   const approvedComments = post.comments;
+  const commentCount = approvedComments.reduce(
+    (total, comment) => total + 1 + comment.replies.length,
+    0,
+  );
+  const showUpdated =
+    post.publishedAt !== null &&
+    post.contentUpdatedAt !== null &&
+    post.contentUpdatedAt.getTime() - post.publishedAt.getTime() > 24 * 60 * 60 * 1000;
+  const threadComments = approvedComments.map((comment) => ({
+    id: comment.id,
+    author: comment.author,
+    content: comment.content,
+    createdAt: comment.createdAt.toISOString(),
+    isAdmin: comment.isAdmin,
+    replyToName: comment.replyToName,
+    replies: comment.replies.map((reply) => ({
+      id: reply.id,
+      author: reply.author,
+      content: reply.content,
+      createdAt: reply.createdAt.toISOString(),
+      isAdmin: reply.isAdmin,
+      replyToName: reply.replyToName,
+      replies: [] as never[],
+    })),
+  }));
 
   return (
     <>
@@ -74,6 +101,12 @@ export default async function PostDetailPage({ params }: Props) {
                 >
                   [{post.category.name}]
                 </Link>
+              )}
+
+              {showUpdated && (
+                <span className="font-pixel leading-none text-[var(--accent-2)]">
+                  UPDATED {formatDate(post.contentUpdatedAt)}
+                </span>
               )}
 
               <span className="inline-flex items-center gap-1.5 font-pixel leading-none">
@@ -172,32 +205,17 @@ export default async function PostDetailPage({ params }: Props) {
               <h2 className="font-pixel text-[10px] leading-none">COMMENTS</h2>
               <span className="pixel-divider flex-1" aria-hidden />
               <span className="font-pixel text-[10px] leading-none text-[var(--muted)]">
-                {String(approvedComments.length).padStart(2, "0")}
+                {String(commentCount).padStart(2, "0")}
               </span>
             </div>
 
             <div className="mt-5">
-              {approvedComments.length === 0 ? (
+              {threadComments.length === 0 ? (
                 <p className="border-2 border-dashed border-[var(--border)] px-5 py-8 text-center text-sm text-[var(--muted)]">
                   NO COMMENTS YET / 还没有评论，来说点什么吧。
                 </p>
               ) : (
-                <div>
-                  {approvedComments.map((comment) => (
-                    <div key={comment.id} className="border-b-2 border-dashed border-[var(--border)] py-4">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="text-sm font-bold">{comment.author}</span>
-                        <time
-                          className="font-pixel text-[8px] leading-none text-[var(--muted)]"
-                          dateTime={comment.createdAt.toISOString()}
-                        >
-                          {formatDateTime(comment.createdAt)}
-                        </time>
-                      </div>
-                      <p className="mt-2 whitespace-pre-line text-[15px] leading-[1.8]">{comment.content}</p>
-                    </div>
-                  ))}
-                </div>
+                <CommentThread postSlug={post.slug} comments={threadComments} />
               )}
             </div>
 

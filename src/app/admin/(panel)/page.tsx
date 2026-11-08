@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { POST_STATUS } from "@/lib/constants";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatDateTime, formatNumber } from "@/lib/format";
 import prisma from "@/lib/prisma";
+import { publishedPostWhere, scheduledPostWhere } from "@/lib/visibility";
 
 export const metadata: Metadata = {
   title: "仪表盘",
@@ -20,22 +21,40 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 export default async function AdminDashboardPage() {
-  const [total, published, draft, commentTotal, pendingComments, views, categoryCount, tagCount, recent] =
-    await Promise.all([
-      prisma.post.count(),
-      prisma.post.count({ where: { status: POST_STATUS.PUBLISHED } }),
-      prisma.post.count({ where: { status: POST_STATUS.DRAFT } }),
-      prisma.comment.count(),
-      prisma.comment.count({ where: { approved: false } }),
-      prisma.post.aggregate({ _sum: { viewCount: true } }),
-      prisma.category.count(),
-      prisma.tag.count(),
-      prisma.post.findMany({
-        orderBy: { updatedAt: "desc" },
-        take: 5,
-        include: { category: true },
-      }),
-    ]);
+  const now = new Date();
+  const [
+    total,
+    published,
+    draft,
+    scheduled,
+    commentTotal,
+    pendingComments,
+    views,
+    categoryCount,
+    tagCount,
+    recent,
+    nextScheduled,
+  ] = await Promise.all([
+    prisma.post.count(),
+    prisma.post.count({ where: publishedPostWhere(now) }),
+    prisma.post.count({ where: { status: POST_STATUS.DRAFT } }),
+    prisma.post.count({ where: scheduledPostWhere(now) }),
+    prisma.comment.count(),
+    prisma.comment.count({ where: { approved: false } }),
+    prisma.post.aggregate({ _sum: { viewCount: true } }),
+    prisma.category.count(),
+    prisma.tag.count(),
+    prisma.post.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      include: { category: true },
+    }),
+    prisma.post.findFirst({
+      where: scheduledPostWhere(now),
+      orderBy: { publishedAt: "asc" },
+      select: { title: true, publishedAt: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -53,11 +72,26 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="文章总数" value={String(total)} hint={`已发布 ${published} · 草稿 ${draft}`} />
+        <StatCard
+          label="文章总数"
+          value={String(total)}
+          hint={`已发布 ${published} · 草稿 ${draft} · 定时 ${scheduled}`}
+        />
         <StatCard label="评论" value={String(commentTotal)} hint={`待审核 ${pendingComments}`} />
         <StatCard label="总阅读量" value={formatNumber(views._sum.viewCount ?? 0)} />
         <StatCard label="分类 / 标签" value={`${categoryCount} / ${tagCount}`} hint="在左侧管理" />
       </div>
+
+      {scheduled > 0 && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
+          <span className="font-medium text-sky-700 dark:text-sky-300">定时待发布 {scheduled} 篇</span>
+          {nextScheduled?.publishedAt && (
+            <span className="ml-2 text-[var(--muted)]">
+              最近一篇：{nextScheduled.title} · {formatDateTime(nextScheduled.publishedAt)}
+            </span>
+          )}
+        </div>
+      )}
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
@@ -71,16 +105,26 @@ export default async function AdminDashboardPage() {
           <p className="p-8 text-center text-sm text-[var(--muted)]">还没有文章，去写第一篇吧。</p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {recent.map((post) => (
+            {recent.map((post) => {
+              const scheduledPost =
+                post.status === POST_STATUS.PUBLISHED &&
+                post.publishedAt !== null &&
+                post.publishedAt.getTime() > now.getTime();
+              const label =
+                post.status === POST_STATUS.DRAFT ? "草稿" : scheduledPost ? "定时" : "已发布";
+
+              return (
               <li key={post.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    post.status === POST_STATUS.PUBLISHED
-                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                    post.status === POST_STATUS.DRAFT
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                      : scheduledPost
+                        ? "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
                   }`}
                 >
-                  {post.status === POST_STATUS.PUBLISHED ? "已发布" : "草稿"}
+                  {label}
                 </span>
                 <Link
                   href={`/admin/posts/${post.id}/edit`}
@@ -89,9 +133,10 @@ export default async function AdminDashboardPage() {
                   {post.title}
                 </Link>
                 <span className="text-xs text-[var(--muted)]">{post.category?.name ?? "未分类"}</span>
-                <time className="text-xs text-[var(--muted)]">{formatDate(post.updatedAt)}</time>
+                <time className="text-xs text-[var(--muted)]">{formatDateTime(post.updatedAt)}</time>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

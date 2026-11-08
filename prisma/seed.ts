@@ -197,6 +197,45 @@ type Settings = Awaited<ReturnType<typeof loadSettings>>;
 
 类型系统的价值在于**把约定写进代码**。当你发现自己反复在注释里解释"这个字段一定有值"时，通常意味着类型可以再收紧一点。`,
   },
+  {
+    title: "下个版本要做什么：写在发布之前",
+    slug: "whats-next-scheduled-post",
+    summary: "这是一篇定时发布的示例文章，用来演示未来发布时间在后台与前台的差异。到时间之前，前台任何入口都看不到它。",
+    category: "tech",
+    tags: ["nextjs", "thinking"],
+    daysAgo: -7,
+    coverImage: null,
+    content: `# 下个版本要做什么
+
+这是一篇**定时发布**的示例文章：数据库里状态已经是「已发布」，但发布时间在 7 天之后。
+
+## 为什么需要定时发布
+
+有些内容适合在特定时间点上线，比如版本公告、活动说明或周报。没有定时能力时，只能人工守着时间点点击发布。
+
+现在只需要在编辑器里把「发布时间」设为一个未来时间：
+
+- 状态保持「已发布」
+- 后台列表显示「定时」
+- 前台所有入口（首页、分类、标签、归档、搜索、API、RSS、sitemap）都会等到时间到达后才展示
+
+## 查询条件只写一次
+
+所有前台查询共用同一个条件，避免漏掉某个出口：
+
+\`\`\`ts
+export function publishedPostWhere(now = new Date()) {
+  return {
+    status: "PUBLISHED",
+    publishedAt: { lte: now },
+  };
+}
+\`\`\`
+
+## 到点之后
+
+无需 cron 或后台任务，下一次请求自然就会看到它。把发布时间改到过去，也会立即出现在前台。`,
+  },
 ];
 
 async function main() {
@@ -260,7 +299,7 @@ async function main() {
   }
   console.log(`✓ 示例文章 ${posts.length} 篇`);
 
-  await prisma.siteSetting.upsert({
+  const settings = await prisma.siteSetting.upsert({
     where: { id: "site" },
     update: {},
     create: {
@@ -276,31 +315,74 @@ async function main() {
   });
   console.log("✓ 站点设置");
 
-  const publishedSlug = posts[0].slug;
-  const firstPost = await prisma.post.findUnique({ where: { slug: publishedSlug } });
+  const firstPost = await prisma.post.findUnique({ where: { slug: posts[0].slug } });
   if (firstPost) {
-    const existing = await prisma.comment.count({ where: { postId: firstPost.id } });
-    if (existing === 0) {
-      await prisma.comment.createMany({
-        data: [
-          {
-            postId: firstPost.id,
-            author: "小林",
-            email: null,
-            content: "写得很清楚，尤其是草稿那段，我之前也踩过这个坑。",
-            approved: true,
-          },
-          {
-            postId: firstPost.id,
-            author: "路人甲",
-            email: null,
-            content: "请问部署到 Vercel 的时候 SQLite 需要额外配置吗？",
-            approved: false,
-          },
-        ],
+    const topContent = "写得很清楚，尤其是草稿那段，我之前也踩过这个坑。";
+
+    let topComment = await prisma.comment.findFirst({
+      where: { postId: firstPost.id, parentId: null, author: "小林" },
+    });
+    if (!topComment) {
+      topComment = await prisma.comment.create({
+        data: {
+          postId: firstPost.id,
+          author: "小林",
+          content: topContent,
+          approved: true,
+        },
       });
-      console.log("✓ 示例评论 2 条（1 条待审核）");
     }
+
+    const guestContent = "补充一句：定时发布和草稿最好在后台能一眼区分，不然容易搞混。";
+    const guestReply = await prisma.comment.findFirst({
+      where: { postId: firstPost.id, parentId: topComment.id, author: "阿树" },
+    });
+    if (!guestReply) {
+      await prisma.comment.create({
+        data: {
+          postId: firstPost.id,
+          parentId: topComment.id,
+          replyToName: topComment.author,
+          author: "阿树",
+          content: guestContent,
+          approved: true,
+        },
+      });
+    }
+
+    const adminContent = "同意，后台列表已经用「草稿 / 已发布 / 定时」三种状态区分了。";
+    const adminReplyExists = await prisma.comment.findFirst({
+      where: { postId: firstPost.id, parentId: topComment.id, isAdmin: true },
+    });
+    if (!adminReplyExists) {
+      await prisma.comment.create({
+        data: {
+          postId: firstPost.id,
+          parentId: topComment.id,
+          replyToName: "阿树",
+          author: settings.authorName,
+          content: adminContent,
+          approved: true,
+          isAdmin: true,
+        },
+      });
+    }
+
+    const pendingExists = await prisma.comment.findFirst({
+      where: { postId: firstPost.id, parentId: null, author: "路人甲" },
+    });
+    if (!pendingExists) {
+      await prisma.comment.create({
+        data: {
+          postId: firstPost.id,
+          author: "路人甲",
+          content: "请问部署到 Vercel 的时候 SQLite 需要额外配置吗？",
+          approved: false,
+        },
+      });
+    }
+
+    console.log("✓ 示例评论、访客回复与博主回复");
   }
 }
 

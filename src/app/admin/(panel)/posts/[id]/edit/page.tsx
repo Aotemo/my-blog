@@ -34,6 +34,7 @@ export default async function EditPostPage({ params }: Props) {
         content: post.content,
         coverImage: post.coverImage,
         status: post.status,
+        publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
         categoryId: post.categoryId,
         tags: post.tags.map((tag) => tag.name),
       }}

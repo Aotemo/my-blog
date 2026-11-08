@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PixelGithub, PixelRss } from "./pixel-icons";
+import { getZonedParts } from "@/lib/format";
 
 export function SiteFooter({
   authorName,
@@ -9,7 +10,7 @@ export function SiteFooter({
   authorName: string;
   githubUrl: string | null;
 }) {
-  const year = new Date().getFullYear();
+  const year = getZonedParts(new Date()).year;
 
   return (
     <footer className="mt-20 border-t-2 border-[var(--ink)]">

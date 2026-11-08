@@ -73,5 +73,6 @@ export const config = {
     "/api/settings/:path*",
     "/api/upload",
     "/api/auth/logout",
+    "/api/admin/comments/:path*",
   ],
 };

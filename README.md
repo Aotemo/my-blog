@@ -8,8 +8,9 @@
 
 - 首页文章列表，每页 10 篇，显示标题、摘要、分类、标签、发布日期与阅读量
 - 文章详情页：Markdown 渲染、代码高亮、自动生成目录（TOC）、阅读量递增
-- 评论区：展示已审核评论，访客提交后进入待审核状态
+- 评论区：展示已审核评论与两级回复（回复统一挂在顶级评论下，显示 @昵称），访客回复同样需要审核，博主回复自动通过并带 AUTHOR 徽章
 - 分类、标签、按年月归档、关键字搜索（标题 / 摘要 / 正文）
+- 文章发布时间管理：支持补录过去时间与未来定时发布，到点前所有前台入口不可见
 - 关于页读取站点设置中的作者信息
 - 响应式布局、亮 / 暗色主题切换（跟随系统，可手动切换并记忆）
 - 每页独立 SEO 元数据、`/sitemap.xml`、`/rss.xml`、自定义 404 页面
@@ -19,10 +20,10 @@
 
 - 账号密码登录，JWT 存于 httpOnly Cookie，中间件保护后台页面与写操作接口
 - 仪表盘：文章总数 / 已发布 / 草稿、评论总数 / 待审核、总阅读量、最近更新文章
-- 文章管理：按状态筛选、标题 / slug 搜索、分页、新建、编辑、删除、发布与撤回
+- 文章管理：按状态（草稿 / 已发布 / 定时）筛选、标题 / slug 搜索、按发布时间排序、新建、编辑、删除、发布与撤回
 - Markdown 分屏编辑器：实时预览、标题自动生成 slug（可手改）、摘要、封面、分类、标签多选与新建、图片上传（PNG / JPEG / GIF / WebP，按文件头校验）并插入 Markdown
 - 分类 / 标签管理：增删改，删除分类后文章自动归为未分类
-- 评论管理：待审核 / 已通过筛选，一键通过、撤销通过、删除
+- 评论管理：待审核 / 已通过筛选，一键通过、撤销通过、删除；可内联以博主身份回复
 - 站点设置：站点标题、描述、作者信息、头像与 GitHub 链接；修改管理员密码
 
 ## 技术栈
@@ -94,6 +95,7 @@ npm run start
 | `ADMIN_USERNAME` | 否 | 种子管理员用户名，默认 `admin` |
 | `ADMIN_PASSWORD` | 否 | 种子管理员密码，默认 `admin123` |
 | `NEXT_PUBLIC_SITE_URL` | 否 | 站点公开地址，用于 canonical、sitemap 与 RSS 中的绝对链接，默认 `http://localhost:3000` |
+| `NEXT_PUBLIC_SITE_TIMEZONE` | 否 | 站点时区，用于日期展示、归档分组与定时发布时间输入，默认 `Asia/Shanghai`，不依赖服务器本地时区 |
 
 ## 目录结构
 
@@ -136,6 +138,7 @@ npm run start
 - `GET|POST /api/categories`、`PATCH|DELETE /api/categories/[id]`
 - `GET|POST /api/tags`、`PATCH|DELETE /api/tags/[id]`
 - `PATCH|DELETE /api/comments/[id]`
+- `POST /api/admin/comments/[id]/reply`（博主回复，自动通过并标记 isAdmin）
 - `GET|PUT /api/settings`、`PUT /api/settings/password`
 - `POST /api/upload`（multipart 字段 `file`，仅 PNG / JPEG / GIF / WebP，按文件头魔数校验，≤ 5MB）
 

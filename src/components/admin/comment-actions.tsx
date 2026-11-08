@@ -3,13 +3,20 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type Props = { id: string; approved: boolean };
+type Props = { id: string; approved: boolean; parentApproved?: boolean };
 
-export function CommentActions({ id, approved }: Props) {
+export function CommentActions({ id, approved, parentApproved }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   async function setApproved(next: boolean) {
+    if (next && parentApproved === false) {
+      const confirmed = window.confirm(
+        "该回复的顶级评论尚未审核，通过后回复仍不会在前台显示。仍要通过吗？",
+      );
+      if (!confirmed) return;
+    }
+
     setBusy(true);
     try {
       const response = await fetch(`/api/comments/${id}`, {
