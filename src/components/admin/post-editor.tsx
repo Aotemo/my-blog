@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { MarkdownArticle } from "@/components/markdown-article";
+import { isImageFile, uploadImage } from "@/lib/client-upload";
 import { SITE_TIMEZONE } from "@/lib/config";
 import { formatDateTimeLocal, parseDateTimeLocal } from "@/lib/format";
 import { slugify } from "@/lib/slug";
@@ -53,11 +54,15 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
   const [tagInput, setTagInput] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingCount, setUploadingCount] = useState(0);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const activePlaceholdersRef = useRef<Set<string>>(new Set());
 
   const wordCount = useMemo(() => content.replace(/\s/g, "").length, [content]);
   const parsedPublishedAt = publishedAt ? parseDateTimeLocal(publishedAt) : null;
@@ -88,44 +93,206 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
     setSelectedTags((prev) => prev.filter((tag) => tag !== name));
   }
 
-  function insertText(snippet: string) {
+  function insertAtCursor(snippet: string) {
     const textarea = textareaRef.current;
     if (!textarea) {
-      setContent((prev) => `${prev}\n${snippet}`);
+      setContent((prev) => `${prev}${prev && !prev.endsWith("\n") ? "\n" : ""}${snippet}`);
       return;
     }
+
+    textarea.focus();
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const next = `${content.slice(0, start)}${snippet}${content.slice(end)}`;
-    setContent(next);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = start + snippet.length;
-    });
+    let inserted = false;
+    try {
+      inserted = document.execCommand("insertText", false, snippet);
+    } catch {
+      inserted = false;
+    }
+    if (!inserted) {
+      textarea.setRangeText(snippet, start, end, "end");
+    }
+    setContent(textarea.value);
   }
 
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
+  function replacePlaceholder(placeholder: string, replacement: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setContent((prev) => prev.replace(placeholder, replacement));
+      return;
+    }
 
-    setUploading(true);
-    setError("");
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await fetch("/api/upload", { method: "POST", body: formData });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        setError(payload?.error ?? "上传失败");
+    const index = textarea.value.indexOf(placeholder);
+    if (index === -1) return;
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+
+    if (document.activeElement === textarea) {
+      textarea.setSelectionRange(index, index + placeholder.length);
+      let inserted = false;
+      try {
+        inserted = document.execCommand("insertText", false, replacement);
+      } catch {
+        inserted = false;
+      }
+      if (inserted) {
+        const delta = replacement.length - placeholder.length;
+        const nextStart =
+          selectionStart > index + placeholder.length
+            ? selectionStart + delta
+            : index + replacement.length;
+        const nextEnd =
+          selectionEnd > index + placeholder.length
+            ? selectionEnd + delta
+            : index + replacement.length;
+        textarea.setSelectionRange(Math.max(0, nextStart), Math.max(0, nextEnd));
+        setContent(textarea.value);
         return;
       }
-      insertText(`![${file.name.replace(/\.[^.]+$/, "")}](${payload.data.url})`);
-    } catch {
-      setError("上传失败，请稍后再试");
-    } finally {
-      setUploading(false);
     }
+
+    // 非聚焦时用 setRangeText，避免把焦点抢回正文
+    textarea.setRangeText(replacement, index, index + placeholder.length, "preserve");
+    setContent(textarea.value);
+  }
+
+  function handleContentChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    const textarea = event.currentTarget;
+    let next = textarea.value;
+    const matches = next.match(/!\[上传中 [^\]\n]*…\]\(\)/g) ?? [];
+    const stale = matches.filter(
+      (placeholder) => !activePlaceholdersRef.current.has(placeholder),
+    );
+
+    if (stale.length === 0) {
+      setContent(next);
+      return;
+    }
+
+    const selection = textarea.selectionStart;
+    let removedBeforeCaret = 0;
+    for (const placeholder of stale) {
+      let index = next.indexOf(placeholder);
+      while (index !== -1) {
+        if (index < selection) removedBeforeCaret += placeholder.length;
+        next = `${next.slice(0, index)}${next.slice(index + placeholder.length)}`;
+        index = next.indexOf(placeholder, index);
+      }
+    }
+
+    textarea.value = next;
+    const caret = Math.max(0, selection - removedBeforeCaret);
+    textarea.setSelectionRange(caret, caret);
+    setContent(next);
+  }
+
+  function createPlaceholder() {
+    return `![上传中 ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}…]()`;
+  }
+
+  async function handleImageFiles(files: File[]) {
+    const images = files.filter(isImageFile);
+    const ignored = files.length - images.length;
+
+    if (images.length === 0) {
+      setError("仅支持图片文件");
+      return;
+    }
+
+    setError(ignored > 0 ? `已忽略 ${ignored} 个非图片文件` : "");
+
+    const placeholders = images.map(() => createPlaceholder());
+    for (const placeholder of placeholders) {
+      activePlaceholdersRef.current.add(placeholder);
+    }
+    insertAtCursor(placeholders.join("\n"));
+    setUploadingCount((count) => count + images.length);
+
+    const failures: string[] = [];
+    await Promise.all(
+      images.map(async (file, index) => {
+        const placeholder = placeholders[index];
+        try {
+          const result = await uploadImage(file);
+          activePlaceholdersRef.current.delete(placeholder);
+          replacePlaceholder(placeholder, `![${result.alt}](${result.url})`);
+        } catch (uploadError) {
+          activePlaceholdersRef.current.delete(placeholder);
+          replacePlaceholder(placeholder, "");
+          failures.push(uploadError instanceof Error ? uploadError.message : "图片上传失败");
+        } finally {
+          setUploadingCount((count) => Math.max(0, count - 1));
+        }
+      }),
+    );
+
+    if (failures.length > 0) {
+      setError(
+        failures.length === images.length
+          ? failures[0]
+          : `部分图片上传失败：${failures[0]}`,
+      );
+    }
+  }
+
+  function getClipboardImages(data: DataTransfer): File[] {
+    return Array.from(data.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+  }
+
+  function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const files = getClipboardImages(event.clipboardData);
+    if (files.length === 0) return;
+    event.preventDefault();
+    void handleImageFiles(files);
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
+    if (!Array.from(event.dataTransfer.types).includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDragActive(true);
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setDragActive(false);
+    }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length > 0) void handleImageFiles(files);
+  }
+
+  async function handleCoverFile(file: File) {
+    if (!isImageFile(file)) {
+      setError("封面仅支持图片文件");
+      return;
+    }
+
+    setCoverUploading(true);
+    setError("");
+    try {
+      const result = await uploadImage(file);
+      setCoverImage(result.url);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "封面上传失败");
+    } finally {
+      setCoverUploading(false);
+    }
+  }
+
+  function handleCoverPaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const files = getClipboardImages(event.clipboardData);
+    if (files.length === 0) return;
+    event.preventDefault();
+    void handleCoverFile(files[0]);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -301,15 +468,47 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
 
         <div className="sm:col-span-2">
           <label htmlFor="cover" className="mb-1.5 block text-sm font-medium">
-            封面图 URL
+            封面图
           </label>
-          <input
-            id="cover"
-            value={coverImage}
-            onChange={(event) => setCoverImage(event.target.value)}
-            className={inputClass}
-            placeholder="/uploads/cover.png 或 https://…"
-          />
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="cover"
+              value={coverImage}
+              onChange={(event) => setCoverImage(event.target.value)}
+              onPaste={handleCoverPaste}
+              className={`${inputClass} min-w-0 flex-1`}
+              placeholder="/uploads/cover.png 或 https://…"
+            />
+            <input
+              id="cover-file"
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) void handleCoverFile(file);
+              }}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverUploading}
+              className="h-10 shrink-0 rounded-lg border border-[var(--border)] px-3 text-xs transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+            >
+              {coverUploading ? "上传中…" : "上传封面"}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-[var(--muted)]">可粘贴图片，或点击「上传封面」自动填入 URL。</p>
+          {coverImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverImage}
+              alt="封面预览"
+              className="mt-2 h-20 max-w-full border-2 border-[var(--border)] object-cover"
+            />
+          )}
         </div>
 
         <div className="sm:col-span-2">
@@ -372,19 +571,25 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
           </div>
           <div className="flex items-center gap-2">
             <input
+              id="body-image-file"
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleUpload}
+              multiple
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? []);
+                event.target.value = "";
+                if (files.length > 0) void handleImageFiles(files);
+              }}
               className="hidden"
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploadingCount > 0}
               className="h-8 rounded-lg border border-[var(--border)] px-3 text-xs transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
             >
-              {uploading ? "上传中…" : "上传图片"}
+              {uploadingCount > 0 ? `上传中 ${uploadingCount}…` : "上传图片"}
             </button>
             <button
               type="button"
@@ -397,14 +602,34 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
         </div>
 
         <div className={`grid gap-4 ${showPreview ? "lg:grid-cols-2" : ""}`}>
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            rows={24}
-            className="min-h-[420px] w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 font-mono text-sm leading-relaxed outline-none transition focus:border-[var(--accent)]"
-            placeholder={"# 标题\n\n开始写点什么…"}
-          />
+          <div
+            className="relative"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={handleContentChange}
+              onPaste={handlePaste}
+              rows={24}
+              aria-label="正文 Markdown"
+              className={`min-h-[420px] w-full resize-y rounded-xl border bg-[var(--background)] p-4 font-mono text-sm leading-relaxed outline-none transition ${
+                dragActive
+                  ? "border-2 border-dashed border-[var(--accent-2)] bg-[var(--accent-soft)]"
+                  : "border-[var(--border)] focus:border-[var(--accent)]"
+              }`}
+              placeholder={"# 标题\n\n开始写点什么…"}
+            />
+            {dragActive && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center border-2 border-dashed border-[var(--accent-2)] bg-[var(--accent-soft)]">
+                <span className="border-2 border-[var(--ink)] bg-[var(--surface)] px-3 py-2 font-pixel text-[9px] leading-none text-[var(--accent)]">
+                  松开以上传图片
+                </span>
+              </div>
+            )}
+          </div>
 
           {showPreview && (
             <div className="min-h-[420px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] p-5">
@@ -416,6 +641,8 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
             </div>
           )}
         </div>
+
+        <p className="mt-2 text-xs text-[var(--muted)]">支持粘贴或拖拽图片上传</p>
       </div>
     </form>
   );
