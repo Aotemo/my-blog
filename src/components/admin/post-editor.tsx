@@ -246,6 +246,10 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
   function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
     const files = getClipboardImages(event.clipboardData);
     if (files.length === 0) return;
+
+    // Excel / Word / IDE 等会同时提供文字和渲染图，优先按文字粘贴
+    if (event.clipboardData.getData("text/plain").trim().length > 0) return;
+
     event.preventDefault();
     void handleImageFiles(files);
   }
@@ -291,6 +295,8 @@ export function PostEditor({ mode, post, categories, tags }: Props) {
   function handleCoverPaste(event: React.ClipboardEvent<HTMLInputElement>) {
     const files = getClipboardImages(event.clipboardData);
     if (files.length === 0) return;
+    if (event.clipboardData.getData("text/plain").trim().length > 0) return;
+
     event.preventDefault();
     void handleCoverFile(files[0]);
   }
