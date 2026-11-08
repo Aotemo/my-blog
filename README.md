@@ -109,6 +109,7 @@ npx prisma generate
 | `ADMIN_PASSWORD` | 否 | 种子管理员密码，默认 `admin123` |
 | `NEXT_PUBLIC_SITE_URL` | 否 | 站点公开地址，用于 canonical、sitemap 与 RSS 中的绝对链接，默认 `http://localhost:3000` |
 | `NEXT_PUBLIC_SITE_TIMEZONE` | 否 | 站点时区，用于日期展示、归档分组与定时发布时间输入，默认 `Asia/Shanghai`，不依赖服务器本地时区 |
+| `SEED_DEMO` | 否 | 是否写入示例文章/分类/标签/评论，默认 `true`；生产环境设为 `false`，只创建管理员与站点设置 |
 
 ## 目录结构
 
@@ -163,7 +164,7 @@ npx prisma generate
 
 1. 准备一台可持久化磁盘的服务器（Node.js 20+）。
 2. 拉取代码后 `npm install`，复制 `.env.example` 为 `.env` 并填写生产配置，务必修改管理员密码。`JWT_SECRET` 使用 `openssl rand -base64 48` 生成，不要保留示例值。
-3. 执行 `npm run db:setup` 初始化数据库。
+3. 初始化数据库：`npx prisma migrate deploy`，然后执行 `SEED_DEMO=false npx prisma db seed` 只创建管理员与站点设置（生产不要写入示例内容；本地演示可省略该变量或设为 `true`）。
 4. `npm run build && npm run start`，可用 systemd / PM2 常驻，前面挂 Nginx 反向代理。
 5. 需要持久化两个位置：
    - `prisma/dev.db`（SQLite 数据库）

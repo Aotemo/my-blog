@@ -239,16 +239,39 @@ export function publishedPostWhere(now = new Date()) {
 ];
 
 async function main() {
+  const seedDemo = (process.env.SEED_DEMO ?? "true").toLowerCase() !== "false";
   const username = process.env.ADMIN_USERNAME ?? "admin";
   const password = process.env.ADMIN_PASSWORD ?? "admin123";
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // 已存在时保留原密码，避免重复执行 seed 重置生产管理员密码
   await prisma.user.upsert({
     where: { username },
-    update: { passwordHash },
+    update: {},
     create: { username, passwordHash },
   });
   console.log(`✓ 管理员账号：${username}`);
+
+  const settings = await prisma.siteSetting.upsert({
+    where: { id: "site" },
+    update: {},
+    create: {
+      id: "site",
+      siteTitle: "山间笔记",
+      siteDescription: "记录技术、思考与生活的地方",
+      authorName: "山间",
+      authorBio:
+        "前端开发者，喜欢把复杂的东西讲简单。这里是我的数字花园，用来存放写过的代码、读过的书和一些没想清楚的问题。",
+      avatarUrl: null,
+      githubUrl: "https://github.com/Aotemo",
+    },
+  });
+  console.log("✓ 站点设置");
+
+  if (!seedDemo) {
+    console.log("✓ SEED_DEMO=false，已跳过示例文章、分类、标签与评论");
+    return;
+  }
 
   for (const category of categories) {
     await prisma.category.upsert({
@@ -298,22 +321,6 @@ async function main() {
     });
   }
   console.log(`✓ 示例文章 ${posts.length} 篇`);
-
-  const settings = await prisma.siteSetting.upsert({
-    where: { id: "site" },
-    update: {},
-    create: {
-      id: "site",
-      siteTitle: "山间笔记",
-      siteDescription: "记录技术、思考与生活的地方",
-      authorName: "山间",
-      authorBio:
-        "前端开发者，喜欢把复杂的东西讲简单。这里是我的数字花园，用来存放写过的代码、读过的书和一些没想清楚的问题。",
-      avatarUrl: null,
-      githubUrl: "https://github.com/Aotemo",
-    },
-  });
-  console.log("✓ 站点设置");
 
   const firstPost = await prisma.post.findUnique({ where: { slug: posts[0].slug } });
   if (firstPost) {
