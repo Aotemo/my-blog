@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
+import { getUploadsDir } from "@/lib/uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,12 @@ const CONTENT_TYPES: Record<string, string> = {
 type Params = { params: Promise<{ path: string[] }> };
 
 /**
- * 运行时读取 public/uploads 下的文件。
+ * 运行时读取上传目录（默认 storage/uploads）下的文件。
  * 这样 `next start` 启动后新上传的图片无需重启即可访问。
  */
 export async function GET(_request: Request, { params }: Params) {
   const { path: segments } = await params;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = getUploadsDir();
   const filePath = path.resolve(uploadDir, ...segments);
 
   if (!filePath.startsWith(`${uploadDir}${path.sep}`)) {

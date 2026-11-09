@@ -74,5 +74,6 @@ export const config = {
     "/api/upload",
     "/api/auth/logout",
     "/api/admin/comments/:path*",
+    "/api/admin/media/:path*",
   ],
 };

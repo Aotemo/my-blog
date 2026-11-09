@@ -4,6 +4,7 @@ import path from "path";
 import { jsonError, jsonOk, unauthorized } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { ALLOWED_IMAGE_TYPES, MAX_UPLOAD_SIZE } from "@/lib/constants";
+import { getUploadsDir } from "@/lib/uploads";
 
 type ImageSignature = { mime: string; extension: string };
 
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   }
 
   const fileName = `${Date.now()}-${randomUUID().slice(0, 8)}${detected.extension}`;
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  const uploadDir = getUploadsDir();
 
   try {
     await mkdir(uploadDir, { recursive: true });

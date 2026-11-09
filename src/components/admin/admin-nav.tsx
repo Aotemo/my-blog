@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const ITEMS = [
   { href: "/admin", label: "仪表盘", exact: true },
   { href: "/admin/posts", label: "文章" },
+  { href: "/admin/media", label: "媒体库" },
   { href: "/admin/categories", label: "分类" },
   { href: "/admin/tags", label: "标签" },
   { href: "/admin/comments", label: "评论" },

@@ -24,6 +24,7 @@
 - Markdown 分屏编辑器：实时预览、标题自动生成 slug（可手改）、摘要、封面、分类、标签多选与新建、图片上传（PNG / JPEG / GIF / WebP，按文件头校验）并插入 Markdown
 - 分类 / 标签管理：增删改，删除分类后文章自动归为未分类
 - 评论管理：待审核 / 已通过筛选，一键通过、撤销通过、删除；可内联以博主身份回复
+- 媒体库：扫描上传目录的图片与引用关系（含草稿、定时文章、封面、头像），支持单张删除与 24 小时前孤儿图片清理
 - 站点设置：站点标题、描述、作者信息、头像与 GitHub 链接；修改管理员密码
 
 ## 技术栈
@@ -94,10 +95,11 @@ npm run start
 npm install
 npx prisma migrate deploy   # 开发环境也可以使用 npx prisma migrate dev
 npx prisma generate
+npm run migrate:uploads     # 把 public/uploads 中的旧图片迁移到 storage/uploads
 # 然后重启服务：npm run build && npm run start（或 npm run dev）
 ```
 
-不要跳过 `npx prisma generate`：旧 Prisma Client 不认识迁移新增的字段，执行 seed 或运行时可能报错。升级前建议备份 `prisma/dev.db`。
+不要跳过 `npx prisma generate`：旧 Prisma Client 不认识迁移新增的字段，执行 seed 或运行时可能报错。`migrate:uploads` 可重复执行，同名文件会跳过并报告；升级前建议备份 `prisma/dev.db` 与 `storage/uploads`（旧版本为 `public/uploads`）。
 
 ## 环境变量
 
@@ -110,6 +112,7 @@ npx prisma generate
 | `NEXT_PUBLIC_SITE_URL` | 否 | 站点公开地址，用于 canonical、sitemap 与 RSS 中的绝对链接，默认 `http://localhost:3000` |
 | `NEXT_PUBLIC_SITE_TIMEZONE` | 否 | 站点时区，用于日期展示、归档分组与定时发布时间输入，默认 `Asia/Shanghai`，不依赖服务器本地时区 |
 | `SEED_DEMO` | 否 | 是否写入示例文章/分类/标签/评论，默认 `true`；生产环境设为 `false`，只创建管理员与站点设置 |
+| `UPLOAD_DIR` | 否 | 上传文件目录，默认 `storage/uploads`；必须可持久化且不要放在 `public` 下 |
 
 ## 目录结构
 
@@ -119,8 +122,9 @@ npx prisma generate
 │   ├── schema.prisma          # 数据模型
 │   ├── migrations/            # 数据库迁移
 │   └── seed.ts                # 种子数据（管理员、示例文章、分类标签、站点设置）
-├── public/
+├── storage/
 │   └── uploads/               # 图片上传目录（.gitkeep 占位，内容不提交）
+├── public/                    # 静态图标等
 ├── src/
 │   ├── app/
 │   │   ├── (site)/            # 前台：首页、文章、分类、标签、归档、搜索、关于
@@ -154,6 +158,7 @@ npx prisma generate
 - `PATCH|DELETE /api/comments/[id]`
 - `POST /api/admin/comments/[id]/reply`（博主回复，自动通过并标记 isAdmin）
 - `GET|PUT /api/settings`、`PUT /api/settings/password`
+- `GET /api/admin/media`、`DELETE /api/admin/media/[name]`、`POST /api/admin/media/cleanup`（媒体库列出/删除/清理孤儿图片）
 - `POST /api/upload`（multipart 字段 `file`，仅 PNG / JPEG / GIF / WebP，按文件头魔数校验，≤ 5MB）
 
 未登录调用受保护接口返回 `401` JSON。
@@ -168,13 +173,13 @@ npx prisma generate
 4. `npm run build && npm run start`，可用 systemd / PM2 常驻，前面挂 Nginx 反向代理。
 5. 需要持久化两个位置：
    - `prisma/dev.db`（SQLite 数据库）
-   - `public/uploads/`（上传的图片）
+   - `storage/uploads/`（上传的图片，可通过 `UPLOAD_DIR` 修改）
 
 ### Vercel 等 Serverless 平台
 
 项目可以构建部署，但需要注意：
 
-- 平台文件系统只读且不持久，SQLite 与 `public/uploads/` 的写入无法保留。若要长期使用，应将数据库换成托管 PostgreSQL / MySQL（修改 `prisma/schema.prisma` 的 provider 与 `DATABASE_URL`），图片改用对象存储并调整上传接口。
+- 平台文件系统只读且不持久，SQLite 与 `storage/uploads/` 的写入无法保留。若要长期使用，应将数据库换成托管 PostgreSQL / MySQL（修改 `prisma/schema.prisma` 的 provider 与 `DATABASE_URL`），图片改用对象存储并调整上传接口。
 - 在环境变量中设置 `NEXT_PUBLIC_SITE_URL` 为正式域名，否则 sitemap / RSS 中的链接会指向 localhost。
 
 ## 安全提示

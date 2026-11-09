@@ -41,8 +41,8 @@ prisma/*.db
 prisma/*.db-journal
 
 # uploads (keep directory)
-public/uploads/*
-!public/uploads/.gitkeep
+storage/uploads/*
+!storage/uploads/.gitkeep
 
 # vercel
 .vercel
